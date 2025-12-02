@@ -14,28 +14,22 @@ import (
 )
 
 func main() {
-	// load .env
 	_ = godotenv.Load()
 
 	cfg := config.LoadConfigFromEnv()
 
-	// connect DB
 	err := config.ConnectDB(cfg)
 	if err != nil {
 		log.Fatalf("db connect error: %v", err)
 	}
-	// auto migrate
 	if err := config.DB.AutoMigrate(&models.User{}); err != nil {
 		log.Println("auto migrate warning:", err)
 	}
 
-	// init google oauth
 	controllers.InitGoogle(cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleRedirectURL)
 
-	// fiber app
 	app := fiber.New()
 
-	// routes
 	routes.Setup(app, cfg)
 
 	port := cfg.Port

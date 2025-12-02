@@ -16,7 +16,6 @@ func Setup(app *fiber.App, cfg config.Config) {
 	app.Get("/auth/google/login", controllers.GoogleLogin)
 	app.Get("/auth/google/callback", controllers.GoogleCallback(cfg.JWTSecret))
 
-	// protected route example
 	app.Get("/me", middleware.RequireAuth(cfg.JWTSecret), func(c *fiber.Ctx) error {
 		claims := c.Locals("user")
 		return c.JSON(fiber.Map{"me": claims})

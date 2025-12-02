@@ -21,7 +21,6 @@ import (
 
 var googleOauthConfig *oauth2.Config
 
-// InitGoogle init OAuth config
 func InitGoogle(clientID, clientSecret, redirectURL string) {
 	googleOauthConfig = &oauth2.Config{
 		RedirectURL:  redirectURL,
@@ -35,24 +34,21 @@ func InitGoogle(clientID, clientSecret, redirectURL string) {
 	}
 }
 
-// GoogleLogin: redirect to Google
 func GoogleLogin(c *fiber.Ctx) error {
 	if googleOauthConfig == nil {
 		return c.Status(500).SendString("oauth not configured")
 	}
 	state := uuid.NewString()
-	// store state in cookie (simple approach)
 	c.Cookie(&fiber.Cookie{
 		Name:     "oauthstate",
 		Value:    state,
 		HTTPOnly: true,
-		MaxAge:   300, // 5 minutes
+		MaxAge:   300, 
 	})
 	url := googleOauthConfig.AuthCodeURL(state, oauth2.AccessTypeOffline)
 	return c.Redirect(url, http.StatusTemporaryRedirect)
 }
 
-// GoogleCallback: handle callback, create/find user, return JWT
 func GoogleCallback(jwtSecret string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		if googleOauthConfig == nil {
@@ -98,7 +94,6 @@ func GoogleCallback(jwtSecret string) fiber.Handler {
 			return c.Status(400).JSON(fiber.Map{"error": "incomplete google data"})
 		}
 
-		// find or create user
 		var user models.User
 		db := config.DB
 		if db == nil {
@@ -107,7 +102,6 @@ func GoogleCallback(jwtSecret string) fiber.Handler {
 
 		err = db.Where("google_id = ?", googleID).First(&user).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// try by email to link accounts
 			err2 := db.Where("email = ?", email).First(&user).Error
 			if errors.Is(err2, gorm.ErrRecordNotFound) {
 				user = models.User{
@@ -121,7 +115,6 @@ func GoogleCallback(jwtSecret string) fiber.Handler {
 					return c.Status(500).JSON(fiber.Map{"error": "create user failed", "detail": err.Error()})
 				}
 			} else if err2 == nil {
-				// update existing user to set google id
 				user.GoogleID = googleID
 				user.Provider = "google"
 				if err := db.Save(&user).Error; err != nil {
@@ -134,7 +127,6 @@ func GoogleCallback(jwtSecret string) fiber.Handler {
 			return c.Status(500).JSON(fiber.Map{"error": "db error", "detail": err.Error()})
 		}
 
-		// generate JWT
 		secret := jwtSecret
 		if secret == "" {
 			secret = os.Getenv("JWT_SECRET")
@@ -150,7 +142,6 @@ func GoogleCallback(jwtSecret string) fiber.Handler {
 			return c.Status(500).JSON(fiber.Map{"error": "token sign failed", "detail": err.Error()})
 		}
 
-		// return token & user
 		return c.JSON(fiber.Map{
 			"token": signed,
 			"user":  user,
